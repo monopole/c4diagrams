@@ -1,48 +1,75 @@
+# General idea
+#
+#    * Maintain diagrams as human-readable, human-editable textual
+#      instructions stored in github.
+#
+#    * Generate images (ideally svg's) from the diagram instructions at will
+#      A Makefile or CI/CD is a good place to keep these instructions.
+#
+#    * Optional: Use graphical tool to do layout (since auto-layout usually looks bad).
+#
+#    * Include these images in markdown.
+#
+#
+#   The basic markdown syntax for image import is
+#     ![my fancy diagram](./some/diagram.svg "My Fancy Diagram")
+#
+#   To get a desired size, use a raw HTML image tag, e.g.
+#    <img src="./some/diagram.svg" alt="my fancy diagram" title="My Fancy Diagram" width="150"/>
+#
 
-# mermaid is a huge pile of javascript that converts textual descriptions
+# Mermaid is a pile of javascript that converts textual descriptions
 # of diagrams into .svg files.
 #
-# It can also convert a specially annotated markdown file into a new markdown file
-# with images replacing textually embedded diagram descriptions.
-# @jregan tried this latter usage style and found it unwieldy and wierd as soon as
-# the diagrams got to be more complex than just two or three boxes.
+# FWIW, mermaid can also convert a specially annotated markdown file
+# into a new markdown file with textually embedded diagram descriptions
+# replaced by image tags.  This approach is unwieldy as soon as the
+# diagrams get to be more complex than just two or three boxes.
+# Also this technique forces use of autolayout, since layout programs
+# cannot read/write diagrams embedded in this way.
+# It's best to keep the diagrams in their own files, and have
+# the markdown use image tags to pull them in.
 #
-# It's easier to write a markdown doc with no attempts to embed diagram text,
-# and instead use image tags to import diagram images generated via some
-# other workflow.
-#
-#   To import an image into markdown use
-#     ![my fancy diagram](./some/diagram.svg "My Fancy Diagram")
-#   To get a desired size, use bare HTML image tag, e.g.
-#    <img src="./some/diagram.svg" alt="my fancy diagram" title="My Fancy Diagram" width="150"/>
-# A Makefile is a good way to arrange for generation of the .svg files.
-#
-# With respect to C4 diagrams, mermaid has its own notation, and it's
-# not the same as, and possibly not as good as, Simon Brown's structurizr project.
+# Mermaid's notation for c4 diagrams is it's own, and not the same as,
+# and possibly not as good as, Simon Brown's structurizr project.
 #
 # See https://github.com/mermaid-js/mermaid-cli#alternative-installations
 # https://github.com/mermaid-js/mermaid-cli/releases/tag/10.1.0
 mermaidImage = minlag/mermaid-cli:10.1.0
 
-# Structurizr is Simon Brown's java-based tooling for creating and showing his
-# own notion of c4 diagrams, using a domain-specific language (DSL) that
-# he developed. The DSL is declarative. It lets one define components,
-# link them to each other, embed them in each other, etc.
-# There's a web app at https://github.com/structurizr/lite
-# and a CLI at https://github.com/structurizr/cli
+# Structurizr is Simon Brown's java-based tooling for creating
+# and showing his own notion of c4 diagrams, using a domain-specific
+# language (DSL) that he developed. The DSL is declarative. It
+# lets one define components, link them to each other, embed them
+# in each other, etc.
 #
-# Both tools want the DSL code in a file that by default is called "workspace.dsl".
-# It's a bit naive to use such a generic extension suffix, but that's what he did.
-# A DSL file describes one diagram (albeit possibly importing other dsl files).
-# It sits in a directory alongside any supplemental files, e.g. theme data, icons, etc.
+# Web app at https://github.com/structurizr/lite
+# CLI at https://github.com/structurizr/cli
 #
-# To have more than one diagram in a directory, one must call them something
-# other than "workspace.dsl", and pass that name to the tooling (at the time of writing,
-# this is done via the STRUCTURIZR_WORKSPACE_FILENAME shell var).
+# Both tools want the DSL code in a file that by default is
+# called "workspace.dsl". Wierd that the suffix is so generic,
+# but that's what it is.
 #
-# The web app is lets one visualize and edit a single DSL file.  Not the best design.
-# Also it creates and leaves behind a ./.structurizr dorectory with more state
-# of some kind - not sure if that's diagram specific or just app overhead.
+# One dsl file describes _any number of diagrams_ as "views"
+# of models defined and reused in the file. A dsl can import other
+# dsl files and may refer to theme data, icons, etc. in nearby files.
+# Hence, structurizer has a notion of a "workspace" directory, home
+# to the "workspace.dsl" file and whatever it refers to.
+#
+# This is analogous to a Go module - a directory containing
+# one go.mod file and any number of other files and directories.
+#
+# So if you want to make a bunch of diagrams for some project,
+# it probably makes sense to dedicate a directory to that purpose,
+# and refer to images generated in that directory from some other
+# place, e.g. the README.md for some git repo.
+#
+# The web app is lets one visualize and edit the dsl file, and
+# and export images.
+#
+# Also it creates and leaves behind a ./.structurizr
+# directory with more state of some kind - not sure if that's
+# diagram specific or just app overhead.
 #
 
 # https://hub.docker.com/r/structurizr/lite/tags
@@ -56,27 +83,51 @@ strzCliImage = structurizr/cli:1.30.0
 .PHONY: runStzrLite
 runStzrLite:
 	docker run -it --rm -p 8080:8080 \
-		-v $$PWD:/usr/local/structurizr \
-		-e STRUCTURIZR_WORKSPACE_FILENAME=myDiagram \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/usr/local/structurizr \
 		$(strzLiteImage)
 
-
 # This command will create N mermaid files, where N is the number
-# of views defined in the DSL.  Thefile names come from
-# the view names, and are prefixed by "structurizr-" (dumb).
-structurizr-myDiagram.mmd:
+# of views defined in the "workspace" DSL file.  The mermaid file
+# names come from the view names, and are prefixed by "structurizr-" (yuck).
+structurizr-myDiagram.dot:
 	docker run -it --rm \
-		-v $$PWD:/usr/local/structurizr \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/usr/local/structurizr \
 		$(strzCliImage) \
 		export \
-		--workspace /usr/local/structurizr/myDiagram.dsl \
+		--workspace /usr/local/structurizr \
+		--output /usr/local/structurizr \
+		--format dot
+
+structurizr-myDiagram.mmd:
+	docker run -it --rm \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/usr/local/structurizr \
+		$(strzCliImage) \
+		export \
+		--workspace /usr/local/structurizr \
 		--output /usr/local/structurizr \
 		--format mermaid
 
-myDiagram.svg: structurizr-myDiagram.mmd
-	docker run --rm -u `id -u`:`id -g` \
-		-v $$PWD:/data \
-		$(mermaidImage) -i structurizr-myDiagram.mmd -o myDiagram.svg
+structurizr-myDiagram.xxx:
+	docker run -it --rm \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/usr/local/structurizr \
+		$(strzCliImage) \
+		export \
+		--workspace /usr/local/structurizr \
+		--output /usr/local/structurizr \
+		--format plantuml
+
+# Using mermaid to make an svg (not very good)
+#myDiagram.svg: structurizr-myDiagram.mmd
+#	docker run --rm -u `id -u`:`id -g` \
+#		-v $$PWD/c4_3dx:/data \
+#		$(mermaidImage) -i structurizr-myDiagram.mmd -o myDiagram.svg
+
+# Using dot to make the svg
+myDiagram.svg: structurizr-myDiagram.dot
+	cd c4_3dx; dot -Tsvg structurizr-myDiagram.dot >myDiagram.svg
+
+installGraphvix:
+	sudo apt-get install graphviz
 
 # https://github.com/pmorch/c4viz
 .PHONY: runC4viz

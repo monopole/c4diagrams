@@ -4,13 +4,12 @@ workspace {
         user = person "User"
         softwareSystem = softwareSystem "Software System"
 
-        user -> softwareSystem "Uses"
+        user -> softwareSystem "Farts"
     }
 
     views {
         systemContext softwareSystem "myDiagram" {
             include *
-            autoLayout
         }
 
         styles {
