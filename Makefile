@@ -18,6 +18,8 @@
 #    <img src="./some/diagram.svg" alt="my fancy diagram" title="My Fancy Diagram" width="150"/>
 #
 
+# The problem is that this whole field is extremely dysfunctional right now.
+
 # Mermaid is a pile of javascript that converts textual descriptions
 # of diagrams into .svg files.
 #
@@ -80,6 +82,9 @@ strzLiteImage = structurizr/lite:3050
 # https://github.com/structurizr/cli
 strzCliImage = structurizr/cli:1.30.0
 
+# This container include graphviz, java and the plantuml java jars
+plantUmlImage = plantuml/plantuml:sha-82d660d
+
 .PHONY: runStzrLite
 runStzrLite:
 	docker run -it --rm -p 8080:8080 \
@@ -107,7 +112,7 @@ structurizr-myDiagram.mmd:
 		--output /usr/local/structurizr \
 		--format mermaid
 
-structurizr-myDiagram.xxx:
+structurizr-myDiagram.puml:
 	docker run -it --rm \
 		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/usr/local/structurizr \
 		$(strzCliImage) \
@@ -115,6 +120,8 @@ structurizr-myDiagram.xxx:
 		--workspace /usr/local/structurizr \
 		--output /usr/local/structurizr \
 		--format plantuml
+
+
 
 # Using mermaid to make an svg (not very good)
 #myDiagram.svg: structurizr-myDiagram.mmd
@@ -126,8 +133,31 @@ structurizr-myDiagram.xxx:
 myDiagram.svg: structurizr-myDiagram.dot
 	cd c4_3dx; dot -Tsvg structurizr-myDiagram.dot >myDiagram.svg
 
-installGraphvix:
+# This creates a directory containing macros, types, themes, etc. that can
+# be consumed by plantuml to make better looking c4 diagrams.
+# This data adds value to the plantuml project.  For whatever reason,
+# the creators maintain this in their own repo rather than open a PR
+# at https://github.com/plantuml/plantuml and upstream it.
+C4-PlantUML-2.5.0:
+	wget -q -O - https://github.com/plantuml-stdlib/C4-PlantUML/archive/refs/tags/v2.5.0.tar.gz |\
+ 	gunzip | tar xf -
+
+
+#	rm -rf C4-PlantUML
+#	git clone git@github.com:plantuml-stdlib/C4-PlantUML.git --depth 1
+#	cd C4-PlantUML; rm -rf .git .gitattributesls .github .vscode intellij
+
+c4_3dx/hoser.svg: c4_3dx/hoser.puml
+	docker run -it --rm \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/data \
+		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/C4-PlantUML:/C4-PlantUML \
+		$(plantUmlImage) -DRELATIVE_INCLUDE="./C4-PlantUML" hoser.puml -tsvg
+
+installGraphviz:
 	sudo apt-get install graphviz
+
+installJava:
+	sudo apt install openjdk-19-jre-headless
 
 # https://github.com/pmorch/c4viz
 .PHONY: runC4viz
