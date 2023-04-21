@@ -3,23 +3,23 @@
 #    * Maintain diagrams as human-readable, human-editable textual
 #      instructions stored in github.
 #
-#    * Generate images (ideally svg's) from the diagram instructions at will
-#      A Makefile or CI/CD is a good place to keep these instructions.
+#    * Generate images (png's, svg's) from these instructions at will,
+#      via simple commands that can be part of a Makefile or CI/CD.
 #
 #    * Optional: Use graphical tool to do layout (since auto-layout usually looks bad).
 #
 #    * Include these images in markdown.
 #
+#      The basic markdown syntax for image import is
+#         ![my fancy diagram](./some/diagram.svg "My Fancy Diagram")
 #
-#   The basic markdown syntax for image import is
-#     ![my fancy diagram](./some/diagram.svg "My Fancy Diagram")
+#      To get a desired size, use a raw HTML image tag, e.g.
+#         <img src="./some/diagram.svg" alt="my fancy diagram" title="My Fancy Diagram" width="150"/>
 #
-#   To get a desired size, use a raw HTML image tag, e.g.
-#    <img src="./some/diagram.svg" alt="my fancy diagram" title="My Fancy Diagram" width="150"/>
-#
+# The field of generated systems drawing is dysfunctional right now.
 
-# The problem is that this whole field is extremely dysfunctional right now.
-
+# Mermaid ------------------------------
+#
 # Mermaid is a pile of javascript that converts textual descriptions
 # of diagrams into .svg files.
 #
@@ -39,18 +39,54 @@
 # https://github.com/mermaid-js/mermaid-cli/releases/tag/10.1.0
 mermaidImage = minlag/mermaid-cli:10.1.0
 
+# C4-PlantUML ---------------------------------
+#
+# A set of macros, types, themes, etc. that can be consumed by plantuml
+# to make better looking c4 diagrams (with notions of "person", "system", etc.)
+# This data stands apart from, but _adds value_ to, the plantuml project.
+# For whatever reason, the creators maintain this in their own repo rather
+# than open a PR at https://github.com/plantuml/plantuml and upstream it.
+# See https://github.com/plantuml-stdlib/C4-PlantUML/releases
+# This stuff isn't containerized, but can be used from the plantuml container.
+C4-PlantUML-2.5.0:
+	wget -q -O - https://github.com/plantuml-stdlib/C4-PlantUML/archive/refs/tags/v2.5.0.tar.gz |\
+ 	gunzip | tar xf -
+
+# plantuml ------------------------------------------
+#
+# plantuml is a venerable java project to create diagrams from text.
+# It doesn't model things or have any rules about how one would
+# create a "coherent" c4 diagram.
+#
+# https://github.com/plantuml/plantuml
+# https://hub.docker.com/r/plantuml/plantuml/tags
+# This image include the plantuml java jars and a JVM and graphviz (the dot program).
+plantUmlImage = plantuml/plantuml:1.2023.6
+
+# Structurizr ---------------------------------------------
+#
 # Structurizr is Simon Brown's java-based tooling for creating
 # and showing his own notion of c4 diagrams, using a domain-specific
 # language (DSL) that he developed. The DSL is declarative. It
 # lets one define components, link them to each other, embed them
 # in each other, etc.
 #
-# Web app at https://github.com/structurizr/lite
-# CLI at https://github.com/structurizr/cli
+# This is the closed-source structurizr web app.
+# Can export images, but only interactively (hit buttons, download, copy out of Download folder).
+# https://hub.docker.com/r/structurizr/lite/tags
+# https://github.com/structurizr/lite/tags
+strzLiteImage = structurizr/lite:3050
 #
-# Both tools want the DSL code in a file that by default is
-# called "workspace.dsl". Wierd that the suffix is so generic,
-# but that's what it is.
+# This is the open source structurizr CLI -- doesn't export SVG directly!
+# Needs to use plantuml, or mermaid, to render.
+# https://hub.docker.com/r/structurizr/cli/tags
+# https://github.com/structurizr/cli
+strzCliImage = structurizr/cli:1.30.0
+#
+# Both the "lite" server and the "cli" want the DSL code in a
+# file that by default is called "workspace.dsl". Odd that such
+# a generic name was chosen, as opposed to say Structurizrfile
+# (like Dockerfile, Makefile, etc.), but that's what it is.
 #
 # One dsl file describes _any number of diagrams_ as "views"
 # of models defined and reused in the file. A dsl can import other
@@ -58,32 +94,28 @@ mermaidImage = minlag/mermaid-cli:10.1.0
 # Hence, structurizer has a notion of a "workspace" directory, home
 # to the "workspace.dsl" file and whatever it refers to.
 #
-# This is analogous to a Go module - a directory containing
+# This directory is analogous to a Go module - a directory containing
 # one go.mod file and any number of other files and directories.
 #
-# So if you want to make a bunch of diagrams for some project,
-# it probably makes sense to dedicate a directory to that purpose,
-# and refer to images generated in that directory from some other
-# place, e.g. the README.md for some git repo.
+# If you want to make a bunch of diagrams for some project, dedicate
+# a directory to that purpose, and refer to images generated in that
+# directory from some other place, e.g. the README.md for some git repo.
 #
-# The web app is lets one visualize and edit the dsl file, and
-# and export images.
-#
-# Also it creates and leaves behind a ./.structurizr
-# directory with more state of some kind - not sure if that's
-# diagram specific or just app overhead.
-#
+# The killer feature of structurizr (over mermaid and plantUML)
+# is that the dsl lets you define _objects_ (people, programs, DBs,
+# servers, etc.) and any number of views (diagrams) that re-use
+# these objects, with rules about how they can be combined (or
+# not combined). The other tools are 1:1 diagram:file, and have
+# no rules.  plantuml has a dumb include feature lacking
+# composition rules and semantics.
 
-# https://hub.docker.com/r/structurizr/lite/tags
-# https://github.com/structurizr/lite/tags
-strzLiteImage = structurizr/lite:3050
+dashboard, 3espace,  - doesn't know
+tomee
+database
+client
 
-# https://hub.docker.com/r/structurizr/cli/tags
-# https://github.com/structurizr/cli
-strzCliImage = structurizr/cli:1.30.0
+553 new client, new tag.
 
-# This container include graphviz, java and the plantuml java jars
-plantUmlImage = plantuml/plantuml:sha-82d660d
 
 .PHONY: runStzrLite
 runStzrLite:
@@ -121,37 +153,24 @@ structurizr-myDiagram.puml:
 		--output /usr/local/structurizr \
 		--format plantuml
 
-
-
 # Using mermaid to make an svg (not very good)
-#myDiagram.svg: structurizr-myDiagram.mmd
-#	docker run --rm -u `id -u`:`id -g` \
-#		-v $$PWD/c4_3dx:/data \
-#		$(mermaidImage) -i structurizr-myDiagram.mmd -o myDiagram.svg
+myMermaidDiagram.svg: structurizr-myDiagram.mmd
+	docker run --rm -u `id -u`:`id -g` \
+		-v $$PWD/c4_3dx:/data \
+		$(mermaidImage) -i structurizr-myDiagram.mmd -o myMermaidDiagram.svg
 
 # Using dot to make the svg
-myDiagram.svg: structurizr-myDiagram.dot
-	cd c4_3dx; dot -Tsvg structurizr-myDiagram.dot >myDiagram.svg
-
-# This creates a directory containing macros, types, themes, etc. that can
-# be consumed by plantuml to make better looking c4 diagrams.
-# This data adds value to the plantuml project.  For whatever reason,
-# the creators maintain this in their own repo rather than open a PR
-# at https://github.com/plantuml/plantuml and upstream it.
-C4-PlantUML-2.5.0:
-	wget -q -O - https://github.com/plantuml-stdlib/C4-PlantUML/archive/refs/tags/v2.5.0.tar.gz |\
- 	gunzip | tar xf -
+myDotDiagram.svg: structurizr-myDiagram.dot
+	cd c4_3dx; dot -Tsvg structurizr-myDiagram.dot >myDotDiagram.svg
 
 
-#	rm -rf C4-PlantUML
-#	git clone git@github.com:plantuml-stdlib/C4-PlantUML.git --depth 1
-#	cd C4-PlantUML; rm -rf .git .gitattributesls .github .vscode intellij
 
-c4_3dx/hoser.svg: c4_3dx/hoser.puml
+# An example of using plantuml with the c4-plantuml enhancements.
+examples/bigbank.svg: examples/bigbank_context.puml
 	docker run -it --rm \
-		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/c4_3dx:/data \
-		-v /home/jregan/myrepos/github.com/monopole/c4diagrams/C4-PlantUML:/C4-PlantUML \
-		$(plantUmlImage) -DRELATIVE_INCLUDE="./C4-PlantUML" hoser.puml -tsvg
+		-v $$PWD/examples:/data \
+		-v $$PWD/C4-PlantUML-2.5.0:/C4-PlantUML \
+		$(plantUmlImage) -DRELATIVE_INCLUDE="../C4-PlantUML" bigbank_context.puml -tsvg
 
 installGraphviz:
 	sudo apt-get install graphviz
